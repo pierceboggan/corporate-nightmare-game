@@ -2,6 +2,7 @@
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using CorporateNightmare.GameComponents;
+using CorporateNightmare.Entities;
 
 namespace CorporateNightmare
 {
@@ -15,7 +16,13 @@ namespace CorporateNightmare
         private const int WINDOW_WIDTH = 800;
         private const int WINDOW_HEIGHT = 600;
         private const string GAME_TITLE = "Corporate Nightmare";
-
+        
+        // Game area constants
+        private const int GAME_AREA_PADDING = 40;
+        private const int SEGMENT_SIZE = 20;
+        private const int INITIAL_SNAKE_LENGTH = 5;
+        private const float INITIAL_SNAKE_SPEED = 8.0f;
+        
         // Core graphics components
         private readonly GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
@@ -25,6 +32,10 @@ namespace CorporateNightmare
         private InputManager _inputManager;
         private ScoreManager _scoreManager;
         private SoundManager _soundManager;
+        
+        // Game entities
+        private Snake _snake;
+        private Rectangle _gameAreaBounds;
         
         // Temporary variables for MVP - will be replaced by proper components later
         private Texture2D _pixel;
@@ -55,6 +66,17 @@ namespace CorporateNightmare
             _soundManager = new SoundManager();
             _gameState = new GameState(this);
             
+            // Define the game area bounds
+            _gameAreaBounds = new Rectangle(
+                GAME_AREA_PADDING, 
+                GAME_AREA_PADDING, 
+                WINDOW_WIDTH - (GAME_AREA_PADDING * 2), 
+                WINDOW_HEIGHT - (GAME_AREA_PADDING * 2)
+            );
+            
+            // Initialize the snake
+            InitializeSnake();
+            
             base.Initialize();
         }
 
@@ -65,7 +87,7 @@ namespace CorporateNightmare
         {
             _spriteBatch = new SpriteBatch(GraphicsDevice);
             
-            // Temporary pixel texture for placeholder rendering
+            // Create a white pixel texture for rendering simple shapes
             _pixel = new Texture2D(GraphicsDevice, 1, 1);
             _pixel.SetData(new[] { Color.White });
             
@@ -75,8 +97,6 @@ namespace CorporateNightmare
             // Load sound effects and music when they are available
             // _soundManager.LoadSoundEffect(this, "Sounds/Collect");
             // _soundManager.LoadSong(this, "Music/GameTheme");
-            
-            // Future content loading will be added here
         }
 
         /// <summary>
@@ -94,30 +114,38 @@ namespace CorporateNightmare
                 Exit();
             }
 
-            // Toggle game state with space bar (for testing)
-            if (_inputManager.IsKeyPressed(Keys.Space))
+            // Process game state changes
+            UpdateGameState();
+            
+            // Process gameplay if we're in the playing state
+            if (_gameState.IsPlaying)
             {
-                if (_gameState.CurrentState == GameState.State.Playing)
+                // Get movement direction from the player's input
+                Vector2 movementDirection = _inputManager.GetMovementDirection();
+                
+                // Update snake direction if the player is providing input
+                if (movementDirection != Vector2.Zero)
                 {
-                    _gameState.ChangeState(GameState.State.Paused);
+                    _snake.SetDirection(movementDirection);
                 }
-                else if (_gameState.CurrentState == GameState.State.Paused)
+                
+                // Update the snake's position and check for collisions
+                _snake.Update(gameTime);
+                
+                // Check if the snake has died from boundary collision
+                if (!_snake.IsAlive)
                 {
-                    _gameState.ChangeState(GameState.State.Playing);
+                    _gameState.ChangeState(GameState.State.GameOver);
+                    _soundManager.PlaySound("Death"); // Will be implemented when sound effects are added
                 }
-                else if (_gameState.CurrentState == GameState.State.MainMenu)
+
+                // FOR TESTING: Press G to grow the snake
+                if (_inputManager.IsKeyPressed(Keys.G))
                 {
-                    _gameState.ChangeState(GameState.State.Playing);
-                }
-                else if (_gameState.CurrentState == GameState.State.GameOver)
-                {
-                    _scoreManager.ResetScore();
-                    _gameState.ChangeState(GameState.State.MainMenu);
+                    _snake.Grow();
+                    _scoreManager.AddScore(10);
                 }
             }
-            
-            // Update the game state
-            _gameState.Update(gameTime);
             
             base.Update(gameTime);
         }
@@ -133,11 +161,19 @@ namespace CorporateNightmare
             
             _spriteBatch.Begin();
             
+            // Draw the game area border
+            DrawGameArea();
+            
+            // Draw the snake if we're playing or game over
+            if (_gameState.IsPlaying || _gameState.IsGameOver)
+            {
+                _snake.Draw(_spriteBatch, _pixel);
+            }
+            
             // Draw game state-specific elements
             _gameState.Draw(_spriteBatch, gameTime);
             
-            // Draw the current score in the top-right corner
-            // When font is available
+            // Draw the current score in the top-right corner (when font is available)
             // _scoreManager.DrawScore(_spriteBatch, _font, new Vector2(WINDOW_WIDTH - 150, 10), Color.Black);
             
             _spriteBatch.End();
@@ -155,6 +191,85 @@ namespace CorporateNightmare
             _soundManager?.Unload();
             
             base.UnloadContent();
+        }
+        
+        /// <summary>
+        /// Initializes the player's snake with default settings.
+        /// </summary>
+        private void InitializeSnake()
+        {
+            // Calculate a good starting position (centered horizontally, upper third vertically)
+            Vector2 startPosition = new Vector2(
+                _gameAreaBounds.Center.X, 
+                _gameAreaBounds.Y + (_gameAreaBounds.Height / 3)
+            );
+            
+            // Create the snake
+            _snake = new Snake(
+                startPosition, 
+                SEGMENT_SIZE, 
+                INITIAL_SNAKE_LENGTH,
+                INITIAL_SNAKE_SPEED,
+                _gameAreaBounds
+            );
+        }
+        
+        /// <summary>
+        /// Updates the game state based on player input.
+        /// </summary>
+        private void UpdateGameState()
+        {
+            // Toggle game state with space bar (for testing)
+            if (_inputManager.IsKeyPressed(Keys.Space))
+            {
+                switch (_gameState.CurrentState)
+                {
+                    case GameState.State.Playing:
+                        _gameState.ChangeState(GameState.State.Paused);
+                        break;
+                    case GameState.State.Paused:
+                        _gameState.ChangeState(GameState.State.Playing);
+                        break;
+                    case GameState.State.MainMenu:
+                        _gameState.ChangeState(GameState.State.Playing);
+                        break;
+                    case GameState.State.GameOver:
+                        _scoreManager.ResetScore();
+                        InitializeSnake(); // Reset the snake for a new game
+                        _gameState.ChangeState(GameState.State.MainMenu);
+                        break;
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Draws the game area border.
+        /// </summary>
+        private void DrawGameArea()
+        {
+            // Draw border - top, right, bottom, left
+            int borderThickness = 2;
+            Color borderColor = Color.DarkGray;
+            
+            // Top border
+            _spriteBatch.Draw(_pixel, 
+                new Rectangle(_gameAreaBounds.X, _gameAreaBounds.Y, _gameAreaBounds.Width, borderThickness), 
+                borderColor);
+            
+            // Right border
+            _spriteBatch.Draw(_pixel, 
+                new Rectangle(_gameAreaBounds.Right - borderThickness, _gameAreaBounds.Y, borderThickness, _gameAreaBounds.Height), 
+                borderColor);
+            
+            // Bottom border
+            _spriteBatch.Draw(_pixel, 
+                new Rectangle(_gameAreaBounds.X, _gameAreaBounds.Bottom - borderThickness, _gameAreaBounds.Width, borderThickness), 
+                borderColor);
+            
+            // Left border
+            _spriteBatch.Draw(_pixel, 
+                new Rectangle(_gameAreaBounds.X, _gameAreaBounds.Y, borderThickness, _gameAreaBounds.Height), 
+                borderColor);
         }
     }
 }
