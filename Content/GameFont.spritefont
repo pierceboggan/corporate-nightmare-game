@@ -1,0 +1,5 @@
+SpriteFontName = GameFont       
+SpriteFontSize = 16       
+UseKerning = true
+DefaultCharacter = *
+CharacterRegions = 32-126

@@ -18,7 +18,7 @@ namespace CorporateNightmare.Entities
         
         // Visual properties
         private readonly int _size;
-        private readonly Color _color;
+        private Color _color;
         
         // Properties with public getters
         public Vector2 Position => _position;
@@ -89,6 +89,15 @@ namespace CorporateNightmare.Entities
         public bool Intersects(Rectangle rectangle)
         {
             return Bounds.Intersects(rectangle);
+        }
+
+        /// <summary>
+        /// Changes the color of the segment.
+        /// </summary>
+        /// <param name="newColor">The new color to set</param>
+        public void SetColor(Color newColor)
+        {
+            _color = newColor;
         }
     }
 }

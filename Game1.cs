@@ -41,6 +41,16 @@ namespace CorporateNightmare
         private Texture2D _pixel;
         private SpriteFont _font;
         
+        // Death animation
+        private const float DEATH_ANIMATION_DELAY = 0.5f; // Half second delay
+        private float _deathTimer;
+        private bool _deathAnimationComplete;
+
+        // Collectible settings
+        private const int COLLECTIBLE_SIZE = 15;
+        private const float COLLECTIBLE_SPAWN_INTERVAL = 3.0f;
+        private CollectibleManager _collectibleManager;
+
         public Game1()
         {
             _graphics = new GraphicsDeviceManager(this);
@@ -77,6 +87,15 @@ namespace CorporateNightmare
             // Initialize the snake
             InitializeSnake();
             
+            // Initialize the collectible manager
+            _collectibleManager = new CollectibleManager(
+                _gameAreaBounds,
+                COLLECTIBLE_SPAWN_INTERVAL,
+                COLLECTIBLE_SIZE
+            );
+            
+            _deathTimer = 0;
+            _deathAnimationComplete = false;
             base.Initialize();
         }
 
@@ -132,13 +151,71 @@ namespace CorporateNightmare
                 // Update the snake's position and check for collisions
                 _snake.Update(gameTime);
                 
-                // Check if the snake has died from boundary collision
-                if (!_snake.IsAlive)
+                // Check if the snake has died
+                if (!_snake.IsAlive && !_deathAnimationComplete)
                 {
-                    _gameState.ChangeState(GameState.State.GameOver);
-                    _soundManager.PlaySound("Death"); // Will be implemented when sound effects are added
+                    _deathTimer += (float)gameTime.ElapsedGameTime.TotalSeconds;
+                    
+                    // Wait for animation delay before transitioning to game over
+                    if (_deathTimer >= DEATH_ANIMATION_DELAY)
+                    {
+                        _deathAnimationComplete = true;
+                        _gameState.ChangeState(GameState.State.GameOver);
+                        
+                        // Play appropriate sound based on collision type
+                        switch (_snake.LastCollisionType)
+                        {
+                            case Snake.CollisionType.Self:
+                                _soundManager.PlaySound("SelfCollision"); // Will be implemented when sound effects are added
+                                break;
+                            case Snake.CollisionType.Boundary:
+                                _soundManager.PlaySound("WallCollision"); // Will be implemented when sound effects are added
+                                break;
+                        }
+                    }
                 }
-
+                
+                // Update collectibles and check for collection
+                _collectibleManager.Update(gameTime);
+                var collected = _collectibleManager.CheckCollisions(_snake.HeadBounds);
+                
+                if (collected != null)
+                {
+                    _scoreManager.AddScore(collected.PointValue);
+                    
+                    // Handle different collectible types
+                    if (collected is CoffeeCollectible coffee)
+                    {
+                        _snake.IncreaseSpeed(coffee.SpeedBoost);
+                        _soundManager.PlaySound("DrinkCoffee"); // Will be implemented when sound effects are added
+                    }
+                    else if (collected is OfficeSupplyCollectible supply)
+                    {
+                        // Grow the snake by the supply's growth amount
+                        for (int i = 0; i < supply.GrowthAmount; i++)
+                        {
+                            _snake.Grow();
+                        }
+                        
+                        // Play appropriate sound effect based on supply type
+                        switch (supply.SupplyType)
+                        {
+                            case OfficeSupplyCollectible.OfficeSupplyType.Stapler:
+                                _soundManager.PlaySound("Stapler");
+                                break;
+                            case OfficeSupplyCollectible.OfficeSupplyType.Paperclip:
+                                _soundManager.PlaySound("Paperclip");
+                                break;
+                            case OfficeSupplyCollectible.OfficeSupplyType.PushPin:
+                                _soundManager.PlaySound("PushPin");
+                                break;
+                            case OfficeSupplyCollectible.OfficeSupplyType.RubberBand:
+                                _soundManager.PlaySound("RubberBand");
+                                break;
+                        }
+                    }
+                }
+                
                 // FOR TESTING: Press G to grow the snake
                 if (_inputManager.IsKeyPressed(Keys.G))
                 {
@@ -164,10 +241,11 @@ namespace CorporateNightmare
             // Draw the game area border
             DrawGameArea();
             
-            // Draw the snake if we're playing or game over
+            // Draw game elements when playing or game over
             if (_gameState.IsPlaying || _gameState.IsGameOver)
             {
                 _snake.Draw(_spriteBatch, _pixel);
+                _collectibleManager.Draw(_spriteBatch, _pixel);
             }
             
             // Draw game state-specific elements
@@ -212,6 +290,7 @@ namespace CorporateNightmare
                 INITIAL_SNAKE_SPEED,
                 _gameAreaBounds
             );
+            _collectibleManager?.Clear();
         }
         
         /// <summary>

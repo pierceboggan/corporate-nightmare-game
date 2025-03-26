@@ -32,6 +32,7 @@ namespace CorporateNightmare.Entities
         // Snake state
         private bool _isAlive;
         private bool _hasGrown;
+        private CollisionType _lastCollisionType;
         
         // Properties with public getters
         public bool IsAlive => _isAlive;
@@ -39,6 +40,14 @@ namespace CorporateNightmare.Entities
         public Vector2 HeadPosition => _segments[0].Position;
         public Rectangle HeadBounds => _segments[0].Bounds;
         public IReadOnlyList<SnakeSegment> Segments => _segments.AsReadOnly();
+        public CollisionType LastCollisionType => _lastCollisionType;
+
+        public enum CollisionType
+        {
+            None,
+            Boundary,
+            Self
+        }
         
         /// <summary>
         /// Creates a new snake at the specified position.
@@ -251,6 +260,7 @@ namespace CorporateNightmare.Entities
             // Check boundary collision
             if (!_gameBounds.Contains(HeadBounds))
             {
+                _lastCollisionType = CollisionType.Boundary;
                 Die();
                 return;
             }
@@ -260,6 +270,11 @@ namespace CorporateNightmare.Entities
             {
                 if (HeadIntersects(_segments[i].Bounds))
                 {
+                    _lastCollisionType = CollisionType.Self;
+                    // Turn the collided segment red for visual feedback
+                    _segments[i].SetColor(Color.Red);
+                    // Turn the head red too
+                    _segments[0].SetColor(Color.Red);
                     Die();
                     return;
                 }
