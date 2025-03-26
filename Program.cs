@@ -1,4 +1,3 @@
-﻿using MyGame;
-
+﻿using CorporateNightmare;
 using var game = new Game1();
 game.Run();
