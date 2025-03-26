@@ -5,7 +5,7 @@ namespace CorporateNightmare.Entities
 {
     public class WorkFromHomePowerUp : PowerUp
     {
-        private const string ASCII_REPRESENTATION = "🏠";
+        private const string ASCII_REPRESENTATION = "WFH";
         
         public WorkFromHomePowerUp(Vector2 position, int size, float duration) 
             : base(position, size, duration)

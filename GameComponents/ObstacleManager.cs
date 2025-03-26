@@ -135,28 +135,12 @@ namespace CorporateNightmare.GameComponents
         {
             foreach (var obstacle in _obstacles)
             {
-                Texture2D texture = obstacle switch
-                {
-                    LTReviewObstacle => _textures?.GetValueOrDefault("lt_review"),
-                    MeetingObstacle => _textures?.GetValueOrDefault("meeting"),
-                    OKRObstacle => _textures?.GetValueOrDefault("okr"),
-                    _ => null
-                };
-                
-                obstacle.Draw(spriteBatch, texture ?? defaultTexture);
+                obstacle.Draw(spriteBatch, defaultTexture);
             }
             
             foreach (var powerUp in _powerUps)
             {
-                Texture2D texture = powerUp switch
-                {
-                    WorkFromHomePowerUp => _textures?.GetValueOrDefault("wfh"),
-                    TeamCollaborationPowerUp => _textures?.GetValueOrDefault("team_collab"),
-                    CorporateRetreatPowerUp => _textures?.GetValueOrDefault("retreat"),
-                    _ => null
-                };
-                
-                powerUp.Draw(spriteBatch, texture ?? defaultTexture);
+                powerUp.Draw(spriteBatch, defaultTexture);
             }
         }
         

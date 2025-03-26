@@ -5,7 +5,7 @@ namespace CorporateNightmare.Entities
 {
     public class CorporateRetreatPowerUp : PowerUp
     {
-        private const string ASCII_REPRESENTATION = "🌴";
+        private const string ASCII_REPRESENTATION = "RTR";
         public float TimeScale { get; private set; } = 0.5f;
         
         public CorporateRetreatPowerUp(Vector2 position, int size, float duration) 

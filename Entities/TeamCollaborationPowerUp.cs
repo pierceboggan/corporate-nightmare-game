@@ -5,7 +5,7 @@ namespace CorporateNightmare.Entities
 {
     public class TeamCollaborationPowerUp : PowerUp
     {
-        private const string ASCII_REPRESENTATION = "👥";
+        private const string ASCII_REPRESENTATION = "TEAM";
         public float ClearRadius { get; private set; } = 100f;
         
         public TeamCollaborationPowerUp(Vector2 position, int size, float duration) 
