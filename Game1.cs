@@ -6,10 +6,6 @@ using CorporateNightmare.Entities;
 
 namespace CorporateNightmare
 {
-    /// <summary>
-    /// Main game class for Corporate Nightmare - a corporate-themed twist on the classic Snake game.
-    /// This class handles the core game loop, initialization, and rendering processes.
-    /// </summary>
     public class Game1 : Game
     {
         // Constants for game configuration
@@ -21,7 +17,7 @@ namespace CorporateNightmare
         private const int GAME_AREA_PADDING = 40;
         private const int SEGMENT_SIZE = 20;
         private const int INITIAL_SNAKE_LENGTH = 5;
-        private const float INITIAL_SNAKE_SPEED = 8.0f;
+        private const float INITIAL_SNAKE_SPEED = 15.0f; // Increased from 8.0f
         
         // Core graphics components
         private readonly GraphicsDeviceManager _graphics;
@@ -29,13 +25,13 @@ namespace CorporateNightmare
         
         // Core game components
         private GameState _gameState;
-        private InputManager _inputManager;
-        private ScoreManager _scoreManager;
-        private SoundManager _soundManager;
+        private readonly InputManager _inputManager;
+        private readonly ScoreManager _scoreManager;
+        private readonly SoundManager _soundManager;
         
         // Game entities
         private Snake _snake;
-        private Rectangle _gameAreaBounds;
+        private readonly Rectangle _gameAreaBounds;
         
         // Temporary variables for MVP - will be replaced by proper components later
         private Texture2D _pixel;
@@ -49,7 +45,16 @@ namespace CorporateNightmare
         // Collectible settings
         private const int COLLECTIBLE_SIZE = 15;
         private const float COLLECTIBLE_SPAWN_INTERVAL = 3.0f;
-        private CollectibleManager _collectibleManager;
+        private readonly CollectibleManager _collectibleManager;
+
+        // Obstacle settings
+        private const float OBSTACLE_SPAWN_INTERVAL = 5.0f;
+        private const float POWERUP_SPAWN_INTERVAL = 15.0f;
+        private readonly ObstacleManager _obstacleManager;
+
+        // UI components
+        private readonly StatusManager _statusManager;
+        private const int STATUS_DISPLAY_PADDING = 10;
 
         public Game1()
         {
@@ -63,18 +68,11 @@ namespace CorporateNightmare
             
             Window.Title = GAME_TITLE;
             IsMouseVisible = true;
-        }
 
-        /// <summary>
-        /// Initialize the game state and variables before the game starts.
-        /// </summary>
-        protected override void Initialize()
-        {
             // Initialize game components
             _inputManager = new InputManager();
             _scoreManager = new ScoreManager();
             _soundManager = new SoundManager();
-            _gameState = new GameState(this);
             
             // Define the game area bounds
             _gameAreaBounds = new Rectangle(
@@ -83,16 +81,35 @@ namespace CorporateNightmare
                 WINDOW_WIDTH - (GAME_AREA_PADDING * 2), 
                 WINDOW_HEIGHT - (GAME_AREA_PADDING * 2)
             );
-            
-            // Initialize the snake
-            InitializeSnake();
-            
+
             // Initialize the collectible manager
             _collectibleManager = new CollectibleManager(
                 _gameAreaBounds,
                 COLLECTIBLE_SPAWN_INTERVAL,
                 COLLECTIBLE_SIZE
             );
+            
+            // Initialize the obstacle manager
+            _obstacleManager = new ObstacleManager(
+                _gameAreaBounds,
+                OBSTACLE_SPAWN_INTERVAL,
+                POWERUP_SPAWN_INTERVAL
+            );
+            
+            // Initialize status manager in top-left corner with padding
+            _statusManager = new StatusManager(new Vector2(STATUS_DISPLAY_PADDING, STATUS_DISPLAY_PADDING));
+        }
+
+        /// <summary>
+        /// Initialize the game state and variables before the game starts.
+        /// </summary>
+        protected override void Initialize()
+        {
+            // Initialize game components
+            _gameState = new GameState(this);
+            
+            // Initialize the snake
+            InitializeSnake();
             
             _deathTimer = 0;
             _deathAnimationComplete = false;
@@ -110,12 +127,30 @@ namespace CorporateNightmare
             _pixel = new Texture2D(GraphicsDevice, 1, 1);
             _pixel.SetData(new[] { Color.White });
             
-            // Load fonts and other assets when they are available
-            // _font = Content.Load<SpriteFont>("Fonts/GameFont");
+            // Load the font
+            _font = Content.Load<SpriteFont>("GameFont");
             
-            // Load sound effects and music when they are available
-            // _soundManager.LoadSoundEffect(this, "Sounds/Collect");
-            // _soundManager.LoadSong(this, "Music/GameTheme");
+            // Initialize fonts for all entities
+            CoffeeCollectible.SetFont(_font);
+            OfficeSupplyCollectible.SetFont(_font);
+            LTReviewObstacle.SetFont(_font);
+            MeetingObstacle.SetFont(_font);
+            OKRObstacle.SetFont(_font);
+            WorkFromHomePowerUp.SetFont(_font);
+            TeamCollaborationPowerUp.SetFont(_font);
+            CorporateRetreatPowerUp.SetFont(_font);
+
+            // Initialize game state and managers
+            _gameState = new GameState(this);
+
+            // Initialize snake and managers with correct parameters
+            _snake = new Snake(
+                new Vector2(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2),
+                SEGMENT_SIZE,
+                INITIAL_SNAKE_LENGTH,
+                INITIAL_SNAKE_SPEED,
+                _gameAreaBounds
+            );
         }
 
         /// <summary>
@@ -175,6 +210,61 @@ namespace CorporateNightmare
                     }
                 }
                 
+                // Update obstacles with the snake's position for tracking
+                _obstacleManager.Update(gameTime, _snake.HeadPosition);
+                
+                // Check for obstacle collisions if snake is alive
+                if (_snake.IsAlive)
+                {
+                    // Handle obstacle collisions
+                    var hitObstacle = _obstacleManager.CheckObstacleCollision(_snake.HeadBounds);
+                    if (hitObstacle != null)
+                    {
+                        string penaltyName = hitObstacle switch
+                        {
+                            LTReviewObstacle => "Leadership Review",
+                            MeetingObstacle => "Endless Meeting",
+                            OKRObstacle => "OKR Assessment",
+                            _ => "Corporate Obstacle"
+                        };
+                        
+                        // Apply obstacle penalties
+                        _snake.ReduceSpeed(hitObstacle.SpeedPenalty);
+                        _scoreManager.AddScore(-hitObstacle.PointPenalty);
+                        _soundManager.PlaySound("ObstacleHit");
+                        
+                        // Show penalty status effect (5 second duration)
+                        _statusManager.AddEffect(penaltyName, 5.0f, Color.Red);
+                        
+                        // Flash the snake head to indicate damage
+                        _snake.GetSegment(0).SetColor(Color.Red);
+                    }
+                    
+                    // Handle power-up collection
+                    var collectedPowerUp = _obstacleManager.CheckPowerUpCollision(_snake.HeadBounds);
+                    if (collectedPowerUp != null)
+                    {
+                        _soundManager.PlaySound("PowerUp");
+                        
+                        // Apply and show appropriate power-up effect
+                        if (collectedPowerUp is WorkFromHomePowerUp wfh)
+                        {
+                            _statusManager.AddEffect("Work From Home", wfh.RemainingDuration, Color.Green);
+                        }
+                        else if (collectedPowerUp is TeamCollaborationPowerUp collab)
+                        {
+                            _statusManager.AddEffect("Team Collaboration", collab.RemainingDuration, Color.DeepSkyBlue);
+                        }
+                        else if (collectedPowerUp is CorporateRetreatPowerUp retreat)
+                        {
+                            _statusManager.AddEffect("Corporate Retreat", retreat.RemainingDuration, Color.MediumPurple);
+                        }
+                        
+                        // Flash the snake head to indicate power-up
+                        _snake.GetSegment(0).SetColor(Color.Yellow);
+                    }
+                }
+                
                 // Update collectibles and check for collection
                 _collectibleManager.Update(gameTime);
                 var collected = _collectibleManager.CheckCollisions(_snake.HeadBounds);
@@ -191,28 +281,7 @@ namespace CorporateNightmare
                     }
                     else if (collected is OfficeSupplyCollectible supply)
                     {
-                        // Grow the snake by the supply's growth amount
-                        for (int i = 0; i < supply.GrowthAmount; i++)
-                        {
-                            _snake.Grow();
-                        }
-                        
-                        // Play appropriate sound effect based on supply type
-                        switch (supply.SupplyType)
-                        {
-                            case OfficeSupplyCollectible.OfficeSupplyType.Stapler:
-                                _soundManager.PlaySound("Stapler");
-                                break;
-                            case OfficeSupplyCollectible.OfficeSupplyType.Paperclip:
-                                _soundManager.PlaySound("Paperclip");
-                                break;
-                            case OfficeSupplyCollectible.OfficeSupplyType.PushPin:
-                                _soundManager.PlaySound("PushPin");
-                                break;
-                            case OfficeSupplyCollectible.OfficeSupplyType.RubberBand:
-                                _soundManager.PlaySound("RubberBand");
-                                break;
-                        }
+                        HandleCollectible(supply);
                     }
                 }
                 
@@ -238,37 +307,35 @@ namespace CorporateNightmare
             
             _spriteBatch.Begin();
             
-            // Draw the game area border
-            DrawGameArea();
-            
             // Draw game elements when playing or game over
             if (_gameState.IsPlaying || _gameState.IsGameOver)
             {
+                DrawGameArea();
                 _snake.Draw(_spriteBatch, _pixel);
                 _collectibleManager.Draw(_spriteBatch, _pixel);
+                _obstacleManager.Draw(_spriteBatch, _pixel);
+                
+                // Draw status effects when playing
+                if (_gameState.IsPlaying && _font != null)
+                {
+                    _statusManager.Draw(_spriteBatch, _font);
+                }
             }
             
             // Draw game state-specific elements
             _gameState.Draw(_spriteBatch, gameTime);
             
-            // Draw the current score in the top-right corner (when font is available)
-            // _scoreManager.DrawScore(_spriteBatch, _font, new Vector2(WINDOW_WIDTH - 150, 10), Color.Black);
+            // Draw the current score
+            if (_font != null)
+            {
+                _scoreManager.DrawScore(_spriteBatch, _font, 
+                    new Vector2(WINDOW_WIDTH - 150, STATUS_DISPLAY_PADDING), 
+                    Color.White);
+            }
             
             _spriteBatch.End();
             
             base.Draw(gameTime);
-        }
-        
-        /// <summary>
-        /// Clean up resources when the game is closing
-        /// </summary>
-        protected override void UnloadContent()
-        {
-            // Dispose of any textures and managed resources
-            _pixel?.Dispose();
-            _soundManager?.Unload();
-            
-            base.UnloadContent();
         }
         
         /// <summary>
@@ -291,6 +358,8 @@ namespace CorporateNightmare
                 _gameAreaBounds
             );
             _collectibleManager?.Clear();
+            _obstacleManager?.Clear();
+            _statusManager?.Clear();
         }
         
         /// <summary>
@@ -349,6 +418,17 @@ namespace CorporateNightmare
             _spriteBatch.Draw(_pixel, 
                 new Rectangle(_gameAreaBounds.X, _gameAreaBounds.Y, borderThickness, _gameAreaBounds.Height), 
                 borderColor);
+        }
+
+        private void HandleCollectible(Collectible collectible)
+        {
+            if (collectible is OfficeSupplyCollectible)
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    _snake.Grow();
+                }
+            }
         }
     }
 }

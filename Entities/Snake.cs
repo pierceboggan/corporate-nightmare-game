@@ -34,6 +34,10 @@ namespace CorporateNightmare.Entities
         private bool _hasGrown;
         private CollisionType _lastCollisionType;
         
+        // Textures
+        private Texture2D _headTexture;
+        private Texture2D _bodyTexture;
+        
         // Properties with public getters
         public bool IsAlive => _isAlive;
         public int Length => _segments.Count;
@@ -121,15 +125,50 @@ namespace CorporateNightmare.Entities
         }
         
         /// <summary>
+        /// Sets the snake's textures
+        /// </summary>
+        public void SetTextures(Texture2D headTexture, Texture2D bodyTexture)
+        {
+            _headTexture = headTexture;
+            _bodyTexture = bodyTexture;
+        }
+        
+        /// <summary>
         /// Draws the snake on the screen.
         /// </summary>
         /// <param name="spriteBatch">SpriteBatch to use for drawing</param>
-        /// <param name="texture">Texture to use for segments</param>
-        public void Draw(SpriteBatch spriteBatch, Texture2D texture)
+        /// <param name="defaultTexture">Texture to use for segments</param>
+        public void Draw(SpriteBatch spriteBatch, Texture2D defaultTexture)
         {
-            foreach (var segment in _segments)
+            for (int i = 0; i < _segments.Count; i++)
             {
-                segment.Draw(spriteBatch, texture);
+                var segment = _segments[i];
+                var texture = i == 0 ? _headTexture : _bodyTexture;
+                
+                // If no texture is set, fall back to colored rectangle
+                if (texture == null)
+                {
+                    segment.Draw(spriteBatch, defaultTexture);
+                }
+                else
+                {
+                    float rotation = 0f;
+                    if (i == 0) // Rotate head based on direction
+                    {
+                        rotation = (float)Math.Atan2(_direction.Y, _direction.X);
+                    }
+                    
+                    spriteBatch.Draw(
+                        texture,
+                        segment.Bounds,
+                        null,
+                        segment.Color,
+                        rotation,
+                        new Vector2(texture.Width / 2, texture.Height / 2),
+                        SpriteEffects.None,
+                        0
+                    );
+                }
             }
         }
         
@@ -288,6 +327,16 @@ namespace CorporateNightmare.Entities
         public void IncreaseSpeed(float speedIncrease)
         {
             _moveSpeed += speedIncrease;
+            _moveInterval = 1.0f / _moveSpeed;
+        }
+
+        /// <summary>
+        /// Reduces the snake's movement speed
+        /// </summary>
+        /// <param name="speedPenalty">Amount to reduce speed by</param>
+        public void ReduceSpeed(float speedPenalty)
+        {
+            _moveSpeed = MathHelper.Max(_moveSpeed - speedPenalty, 1.0f);
             _moveInterval = 1.0f / _moveSpeed;
         }
     }

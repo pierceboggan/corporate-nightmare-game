@@ -32,6 +32,7 @@ namespace CorporateNightmare.Entities
             _size
         );
         public int Size => _size;
+        public Color Color => _color;
 
         /// <summary>
         /// Creates a new snake segment at the specified position.

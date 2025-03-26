@@ -1,5 +1,22 @@
-SpriteFontName = GameFont       
-SpriteFontSize = 16       
-UseKerning = true
-DefaultCharacter = *
-CharacterRegions = 32-126
+<?xml version="1.0" encoding="utf-8"?>
+<XnaContent xmlns:Graphics="Microsoft.Xna.Framework.Content.Pipeline.Graphics">
+  <Asset Type="Graphics:FontDescription">
+    <FontName>Arial</FontName>
+    <Size>16</Size>
+    <Spacing>0</Spacing>
+    <UseKerning>true</UseKerning>
+    <Style>Regular</Style>
+    <DefaultCharacter>*</DefaultCharacter>
+    <CharacterRegions>
+      <CharacterRegion>
+        <Start>32</Start>
+        <End>126</End>
+      </CharacterRegion>
+      <!-- Add emoji range for our text-based graphics -->
+      <CharacterRegion>
+        <Start>9728</Start>
+        <End>10024</End>
+      </CharacterRegion>
+    </CharacterRegions>
+  </Asset>
+</XnaContent>

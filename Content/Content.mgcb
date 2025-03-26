@@ -9,14 +9,12 @@
 
 #-------------------------------- References --------------------------------#
 
-/reference:..\..\..\..\..\.nuget\packages\monogame.extended.content.pipeline\3.8.0\tools\MonoGame.Extended.Content.Pipeline.dll
-
 #---------------------------------- Content ---------------------------------#
 
-# Future content assets will be added here as needed:
-# - Textures for snake segments
-# - Collectible item sprites
-# - Background textures
-# - Font assets for UI
-# - Sound effects and music
+#begin GameFont.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/processorParam:TextureFormat=Compressed
+/build:GameFont.spritefont
 
